@@ -1,0 +1,22 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Archives
+*.zip
+*.rar
+*.7z
+
+# Logs
+*.log
+
+# Secrets (just in case)
+.env
+*.key
+id_rsa*
+*.pem
+
+# Large tool outputs (optional)
+*.pcap
+*.cap
