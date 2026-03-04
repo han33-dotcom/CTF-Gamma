@@ -11,9 +11,9 @@
   - View/Download (recommended): [Gamma_CTF_Report.pdf](../../raw/main/docs/Gamma_CTF_Report.pdf)
   - Source file: `docs/Gamma_CTF_Report.pdf`
 
-- 🛡️ **Nessus scan evidence:**
-  - Rendered (GitHub Pages): https://han33-dotcom.github.io/CTF-Gamma/Nessus_Scan.html
-  - Source file: `docs/Nessus_Scan.html`
+- 🛡️ **Nessus scan evidence (PDF):**
+  - View/Download: [Nessus_Scan.pdf](../../raw/main/docs/Nessus_Scan.pdf)
+  - Source file: `docs/Nessus_Scan.pdf`
 
 - 🧾 **Executive summary:** `findings/executive-summary.md`
 - 🧰 **Remediation checklist:** `findings/remediation.md`
