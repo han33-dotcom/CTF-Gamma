@@ -1,0 +1,889 @@
+\documentclass[11pt,a4paper]{report}
+
+% Gamma CTF Security Assessment Report
+% Compile from the docs/ directory:
+%   pdflatex --miktex-disable-maintenance -interaction=nonstopmode -halt-on-error Gamma_CTF_Report.tex
+%   pdflatex --miktex-disable-maintenance -interaction=nonstopmode -halt-on-error Gamma_CTF_Report.tex
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.82in]{geometry}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{hyperref}
+
+\definecolor{GammaNavy}{HTML}{0B1F33}
+\definecolor{GammaBlue}{HTML}{155E75}
+\definecolor{GammaSteel}{HTML}{536878}
+\definecolor{GammaGold}{HTML}{C9972D}
+\definecolor{GammaRed}{HTML}{A83232}
+\definecolor{GammaOrange}{HTML}{B85C00}
+\definecolor{GammaGreen}{HTML}{2F855A}
+\definecolor{GammaPanel}{HTML}{EEF4F7}
+\definecolor{GammaLight}{HTML}{F5F7FA}
+\definecolor{GammaRule}{HTML}{D6DEE8}
+\definecolor{CodeBg}{HTML}{111827}
+\definecolor{CodeFg}{HTML}{E5E7EB}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=GammaBlue,
+  urlcolor=GammaBlue,
+  citecolor=GammaBlue,
+  pdftitle={Gamma CTF Security Assessment Report},
+  pdfauthor={Hassan Nasrallah}
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\renewcommand{\arraystretch}{1.18}
+\setcounter{tocdepth}{2}
+\setlist[itemize]{leftmargin=1.5em, itemsep=0.16em}
+\setlist[enumerate]{leftmargin=1.55em, itemsep=0.16em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Gamma CTF}
+\fancyhead[R]{Security Assessment Report}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\titleformat{\chapter}
+  {\normalfont\Huge\bfseries\color{GammaNavy}}
+  {\thechapter}{0.75em}{}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{GammaBlue}}
+  {\thesection}{0.75em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{GammaSteel}}
+  {\thesubsection}{0.75em}{}
+
+\captionsetup{font=small, labelfont=bf, justification=centering}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\cmd}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\filepath}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\host}[1]{\texttt{\detokenize{#1}}}
+
+% Course-submission version: proof material remains visible.
+\newif\ifredact
+\redactfalse
+\newcommand{\secret}[1]{\ifredact\texttt{[REDACTED]}\else\texttt{#1}\fi}
+
+\lstdefinestyle{terminal}{
+  basicstyle=\ttfamily\small\color{CodeFg},
+  backgroundcolor=\color{CodeBg},
+  frame=single,
+  rulecolor=\color{CodeBg},
+  breaklines=true,
+  keepspaces=true,
+  columns=fullflexible,
+  showstringspaces=false,
+  xleftmargin=0.4em,
+  xrightmargin=0.4em,
+  aboveskip=0.75em,
+  belowskip=0.75em
+}
+
+\lstdefinestyle{plaincode}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  keepspaces=true,
+  columns=fullflexible,
+  showstringspaces=false,
+  frame=single,
+  rulecolor=\color{GammaRule},
+  backgroundcolor=\color{GammaLight}
+}
+
+\newtcolorbox{infobox}[1]{
+  enhanced,
+  colback=GammaPanel,
+  colframe=GammaBlue,
+  boxrule=0.7pt,
+  arc=2pt,
+  title=#1,
+  fonttitle=\bfseries,
+  left=8pt,
+  right=8pt,
+  top=6pt,
+  bottom=6pt
+}
+
+\newtcolorbox{findingbox}[2]{
+  enhanced,
+  colback=white,
+  colframe=#1,
+  boxrule=0.9pt,
+  arc=2pt,
+  title=#2,
+  fonttitle=\bfseries,
+  left=8pt,
+  right=8pt,
+  top=6pt,
+  bottom=6pt
+}
+
+\newcommand{\critical}{\textbf{\textcolor{GammaRed}{Critical}}}
+\newcommand{\high}{\textbf{\textcolor{GammaOrange}{High}}}
+\newcommand{\medium}{\textbf{\textcolor{GammaGold}{Medium}}}
+\newcommand{\low}{\textbf{\textcolor{GammaGreen}{Low}}}
+
+\newcommand{\evidence}[4][0.92\linewidth]{%
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=#1]{#2}
+    \caption{#3}
+    \label{#4}
+  \end{figure}
+}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+
+\begin{titlepage}
+\centering
+\vspace*{0.85cm}
+\includegraphics[width=0.15\linewidth]{figures/gamma_img-000.png}\par
+\vspace{0.7cm}
+
+{\Large American University of Beirut\par}
+{\large Maroun Semaan Faculty of Engineering and Architecture\par}
+\vspace{0.85cm}
+
+{\large EECE 503G -- Introduction to Ethical Hacking\par}
+{\normalsize Instructor: Dr. Hussein Bakri\par}
+\vspace{1.15cm}
+
+{\Huge\bfseries\color{GammaNavy} Gamma CTF\par}
+\vspace{0.28cm}
+{\Large\color{GammaBlue} Security Assessment Report\par}
+\vspace{1.0cm}
+
+\begin{tabular}{rl}
+\textbf{Prepared by:} & Hassan Nasrallah \\
+\textbf{Assessment type:} & Authorized academic CTF lab \\
+\textbf{Target:} & Gamma virtual machine \\
+\textbf{Submission type:} & Course report \\
+\end{tabular}
+
+\vfill
+
+\begin{infobox}{Report Scope}
+This report documents an authorized assessment of the Gamma CTF virtual machine. It consolidates the original PDF evidence into a cleaner technical report, improves the content structure, separates validated exploits from unsuccessful research paths, and provides remediation guidance suitable for academic review. Flags, passwords, and hashes are intentionally visible because this version is prepared for course submission.
+\end{infobox}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+\chapter*{Executive Summary}
+\addcontentsline{toc}{chapter}{Executive Summary}
+
+The Gamma target was fully compromised during the authorized CTF assessment. The compromise began with a misconfigured Network File System (NFS) export that exposed Peter's home directory to the network with read/write access. Because that exported directory contained user-controlled authentication files, write access to the share allowed SSH trust material to be added directly to Peter's account. This produced SSH access as Peter without knowing Peter's password.
+
+After initial access was obtained, multiple independent privilege-escalation paths were identified and validated. Root access was achieved through passwordless \cmd{sudo} access to \cmd{/usr/bin/strace}, unsafe Docker group membership, cron wildcard injection in a privileged backup process, weak user credentials, and a non-root account named \textit{insecurity} with UID 0. These paths show that Gamma was not vulnerable because of one isolated bug. The target suffered from overlapping failures in network service exposure, account management, privilege separation, scheduled task design, and patch management.
+
+An authenticated Nessus scan reinforced the manual findings. The scan reported 251 total findings, including 24 critical and 92 high-severity issues. It also identified the target as Ubuntu 18.04.x, an end-of-standard-support operating system. Although patch debt was significant, the highest-impact attack paths were caused by insecure configuration rather than by a single CVE.
+
+\begin{findingbox}{GammaGold}{Overall Impact}
+Gamma should be treated as fully compromised. An attacker on the same network could mount Peter's home directory, gain SSH access, escalate to root, read or modify sensitive files, extract password hashes, create persistence, and recover all CTF flags.
+\end{findingbox}
+
+\section*{Top Risks}
+\addcontentsline{toc}{section}{Top Risks}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{L{0.14\linewidth} Y Y}
+\toprule
+\textbf{Severity} & \textbf{Issue} & \textbf{Practical Impact} \\
+\midrule
+\critical & Writable NFS export of \filepath{/home/peter} & Remote account takeover through SSH key planting. \\
+\critical & Passwordless \cmd{sudo} access to \cmd{strace} & Immediate root shell from Peter's account. \\
+\critical & Cron wildcard injection & Arbitrary command execution as root. \\
+\critical & Docker group membership & Root-equivalent host access through Docker. \\
+\critical & UID 0 \textit{insecurity} account & Root access through a non-root account. \\
+\critical & Weak SSH credentials & Account compromise through password guessing and cracking. \\
+\high & Unsupported Ubuntu 18.04.x baseline & Broad exposure to known vulnerabilities. \\
+\bottomrule
+\end{tabularx}
+\caption{Executive risk summary.}
+\end{table}
+
+\tableofcontents
+\clearpage
+\hypersetup{pageanchor=true}
+\pagenumbering{arabic}
+
+\chapter{Assessment Overview}
+
+\section{Objective}
+The objective of this assessment was to evaluate the Gamma CTF target from the perspective of an attacker operating inside the authorized course lab environment. The assessment focused on identifying exposed services, validating weaknesses, obtaining initial access, escalating privileges, recovering flags, and producing remediation guidance.
+
+The goal was not only to solve the CTF, but also to explain why each successful step worked and how the same weaknesses should be remediated in a real system.
+
+\section{Scope}
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{L{0.25\linewidth} Y}
+\toprule
+\textbf{Item} & \textbf{Scope Detail} \\
+\midrule
+Target & Gamma CTF virtual machine. \\
+Observed target IPs & \host{192.168.149.142}, \host{192.168.227.158}, and \host{192.168.15.144} across different lab sessions. \\
+Testing type & Authorized CTF/lab exploitation. \\
+Activities & Reconnaissance, vulnerability scanning, exploitation, privilege escalation, flag collection, remediation planning. \\
+Out of scope & Any non-lab system or unauthorized target. \\
+\bottomrule
+\end{tabularx}
+\caption{Assessment scope.}
+\end{table}
+
+\begin{infobox}{Note on IP Address Differences}
+The original screenshots show different private IP addresses for Gamma. This appears to be caused by VMware, NAT, or host-only network reassignment across separate lab sessions. The IP changes do not affect the technical conclusions because the screenshots refer to the same Gamma VM and the same exploitation workflow.
+\end{infobox}
+
+\section{Tools Used}
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{L{0.28\linewidth} Y}
+\toprule
+\textbf{Tool / Command} & \textbf{Purpose} \\
+\midrule
+\cmd{nmap} & TCP/UDP service discovery, version detection, script scanning. \\
+\cmd{showmount} & NFS export enumeration. \\
+\cmd{mount} & Mounting the exposed NFS share. \\
+\cmd{ssh} & Remote login as compromised users. \\
+Nessus Essentials & Authenticated vulnerability scanning. \\
+Docker & Local privilege escalation validation. \\
+\cmd{find} & SUID binary enumeration. \\
+\cmd{grep} & Cron and configuration review. \\
+\cmd{hydra} & SSH password attack against Bob. \\
+Hashcat / John the Ripper & Password hash cracking attempts. \\
+\cmd{sudo -l} & Local privilege review. \\
+\cmd{strace} & Privilege escalation through misconfigured sudo. \\
+\bottomrule
+\end{tabularx}
+\caption{Tools and commands used during the assessment.}
+\end{table}
+
+\chapter{Methodology}
+
+The assessment followed a standard attack-chain methodology:
+\begin{enumerate}
+  \item \textbf{Reconnaissance:} Identify exposed services and open ports.
+  \item \textbf{Service analysis:} Determine which services exposed useful attack surface.
+  \item \textbf{Vulnerability scanning:} Use authenticated Nessus scanning to identify local weaknesses and patch gaps.
+  \item \textbf{Initial access:} Validate whether a network-exposed service could lead to shell access.
+  \item \textbf{Privilege escalation:} Enumerate local privileges, users, groups, scheduled tasks, and SUID binaries.
+  \item \textbf{Impact validation:} Confirm root access and recover CTF flags.
+  \item \textbf{Remediation planning:} Convert validated attack paths into concrete defensive recommendations.
+\end{enumerate}
+
+\begin{infobox}{Validation Standard}
+Scanner output was treated as supporting evidence, not as final proof. The strongest conclusions in this report are based on manually confirmed attack paths: NFS write access, SSH key injection, local privilege escalation, password compromise, and root-level command execution.
+\end{infobox}
+
+\chapter{Reconnaissance and Vulnerability Assessment}
+
+\section{Nmap Enumeration}
+
+\subsection{Aggressive TCP Scan}
+Nmap was used to identify the externally visible attack surface:
+\begin{lstlisting}[style=terminal]
+nmap -A <Gamma_machine_IP>
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{L{0.16\linewidth} L{0.18\linewidth} Y}
+\toprule
+\textbf{Port} & \textbf{Service} & \textbf{Security Relevance} \\
+\midrule
+\cmd{22/tcp} & SSH & Remote login path; later useful for key-based access and password-based attacks. \\
+\cmd{111/tcp} & rpcbind & Supports discovery of NFS-related services. \\
+\cmd{2049/tcp} & NFS & Primary initial-access vector. \\
+\bottomrule
+\end{tabularx}
+\caption{Primary TCP services identified by Nmap.}
+\end{table}
+
+\evidence{figures/gamma_img-001.png}{Aggressive Nmap scan showing SSH, rpcbind, and NFS exposure.}{fig:nmap-aggressive}
+
+The most important early observation was the combination of \cmd{rpcbind} and NFS. NFS is not automatically exploitable, but if exports are overly permissive, it can expose sensitive files or allow unauthorized modification of user-controlled directories.
+
+\subsection{UDP, Version, and Script Scans}
+UDP and follow-up service checks confirmed the same service direction:
+\begin{lstlisting}[style=terminal]
+nmap -sU <Gamma_machine_IP>
+nmap -sX <Gamma_machine_IP>
+nmap -sV <Gamma_machine_IP>
+nmap -sV -p 111 <Gamma_machine_IP>
+nmap --script vuln <Gamma_machine_IP>
+\end{lstlisting}
+
+The UDP scan identified \cmd{68/udp}, \cmd{111/udp}, and \cmd{2049/udp}. The Xmas scan showed several high-numbered ports in an \cmd{open|filtered} state, and version detection showed those ports were related to \cmd{mountd}. The \cmd{rpcbind} service did not reveal a practical exploit path beyond enumeration. Nmap vulnerability scripts did not identify a direct exploit, but SSH enumeration confirmed that the target accepted both public-key authentication and password authentication.
+
+\section{Nessus Authenticated Scan}
+Nessus Essentials was used to perform an authenticated scan against Gamma. The scan authenticated over SSH as Peter using a private key. This was possible after SSH trust material had been added to Peter's account through the writable NFS export.
+
+\evidence{figures/gamma_img-002.png}{Nessus SSH credential configuration for the authenticated scan.}{fig:nessus-credentials}
+
+The scan should therefore be interpreted as an authenticated low-privilege scan. Nessus did not scan as root; it scanned from the perspective of a compromised user account.
+
+\subsection{Severity Summary}
+\begin{table}[H]
+\centering
+\begin{tabular}{lr}
+\toprule
+\textbf{Severity} & \textbf{Count} \\
+\midrule
+Critical & 24 \\
+High & 92 \\
+Medium & 63 \\
+Low & 10 \\
+Informational & 62 \\
+\midrule
+\textbf{Total} & \textbf{251} \\
+\bottomrule
+\end{tabular}
+\caption{Nessus severity distribution.}
+\end{table}
+
+\subsection{Important Nessus Findings}
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{L{0.36\linewidth} Y}
+\toprule
+\textbf{Finding Area} & \textbf{Relevance} \\
+\midrule
+NFS exported share information disclosure & Confirmed the NFS exposure used for initial access. \\
+NFS shares world readable & Confirmed that users' files could be read remotely. \\
+Ubuntu 18.04.x SEoL & Showed the system was beyond standard support. \\
+Docker installed & Supported later privilege-escalation analysis. \\
+SSH password authentication accepted & Supported password attack risk. \\
+OpenSSH, kernel, Vim, tcpdump, Python, and snapd vulnerabilities & Showed broad patch debt. \\
+\bottomrule
+\end{tabularx}
+\caption{Relevant authenticated Nessus observations.}
+\end{table}
+
+Nessus was useful, but not every scanner finding became a validated exploit. The report focuses on confirmed impact while still documenting broader exposure.
+
+\chapter{Initial Access}
+
+\section{NFS Export Discovery}
+The first successful access path came from NFS:
+\begin{lstlisting}[style=terminal]
+showmount -e <Gamma_machine_IP>
+\end{lstlisting}
+
+The result showed:
+\begin{lstlisting}[style=plaincode]
+/home/peter *
+\end{lstlisting}
+
+\evidence[0.62\linewidth]{figures/gamma_img-003.png}{NFS export list showing \filepath{/home/peter}.}{fig:nfs-export}
+
+This meant Peter's home directory was exported and accessible to any client matched by \cmd{*}. The wildcard was a critical misconfiguration because it allowed any host on the lab network to mount the share.
+
+\section{Mounting Peter's Home Directory}
+The share was mounted from the attacking machine. Once mounted, Peter's files were readable. This exposed user data and one of the CTF flags. The more serious issue, however, was write access: the share allowed files to be created or modified inside Peter's home directory.
+
+\section{SSH Key Injection}
+SSH supports public-key authentication through a user's \filepath{authorized_keys} file. If an attacker can write to a user's \filepath{.ssh/authorized_keys}, the attacker can add their own public key and authenticate as that user.
+
+The process was:
+\begin{enumerate}
+  \item Create a \filepath{.ssh} directory inside Peter's mounted home directory.
+  \item Generate or reuse an SSH key pair from the attacking machine.
+  \item Place the attacker's public key into Peter's \filepath{authorized_keys} file.
+  \item Fix file and directory permissions so SSH accepts the key.
+  \item Log in as Peter over SSH.
+\end{enumerate}
+
+\evidence{figures/gamma_img-004.png}{Successful SSH session as Peter after adding an authorized key through NFS.}{fig:peter-ssh}
+
+This resulted in SSH access as Peter without knowing Peter's password.
+
+\begin{findingbox}{GammaRed}{Initial Access Finding: Writable NFS Export}
+\begin{tabularx}{\linewidth}{L{0.28\linewidth} Y}
+\textbf{Severity} & \critical \\
+\textbf{Affected service} & NFS \\
+\textbf{Affected account} & Peter \\
+\textbf{Exploitability} & Network-accessible from the lab segment \\
+\textbf{Result} & SSH access as Peter \\
+\textbf{Root cause} & Overly permissive NFS export using wildcard access and write permissions \\
+\end{tabularx}
+\end{findingbox}
+
+\chapter{Privilege Escalation}
+
+After gaining access as Peter, local enumeration revealed several possible privilege-escalation routes. This section separates successful paths from unsuccessful exploratory paths so the report focuses on confirmed impact.
+
+\section{Validated Path 1: Passwordless sudo strace}
+Peter's sudo privileges showed:
+\begin{lstlisting}[style=plaincode]
+(ALL) NOPASSWD: /usr/bin/strace
+\end{lstlisting}
+
+The escalation command was:
+\begin{lstlisting}[style=terminal]
+sudo strace -o /dev/null /bin/sh
+whoami
+\end{lstlisting}
+
+\evidence{figures/gamma_img-005.png}{Peter using passwordless \cmd{strace} to spawn a root shell.}{fig:strace}
+
+\cmd{strace} launches and traces another process. If \cmd{strace} is executed as root through \cmd{sudo}, the process it launches also runs with root privileges. By telling \cmd{strace} to execute \cmd{/bin/sh}, Peter effectively launched a root shell.
+
+\begin{findingbox}{GammaRed}{Finding: Passwordless sudo access to strace}
+\begin{tabularx}{\linewidth}{L{0.28\linewidth} Y}
+\textbf{Severity} & \critical \\
+\textbf{Affected user} & Peter \\
+\textbf{Result} & Root shell \\
+\textbf{Root cause} & Dangerous binary allowed through \cmd{sudo} with \cmd{NOPASSWD} \\
+\end{tabularx}
+\end{findingbox}
+
+\section{Validated Path 2: Cron Wildcard Injection}
+The system contained a root-owned backup workflow that used \cmd{tar} with wildcard expansion over user-controlled files. This is dangerous because shell wildcards are expanded before the target command runs. If filenames begin with \cmd{--}, some tools may interpret them as command-line options rather than ordinary filenames.
+
+The following attacker-controlled filenames were created:
+\begin{lstlisting}[style=plaincode]
+--checkpoint=1
+--checkpoint-action=exec=sh exploit.sh
+exploit.sh
+\end{lstlisting}
+
+When the backup job executed \cmd{tar} over the directory, the wildcard expanded to include these filenames. \cmd{tar} interpreted them as checkpoint options and executed \filepath{exploit.sh}.
+
+The first payload copied \filepath{/etc/shadow} into Peter's accessible directory. This proved that the cron job was executing attacker-controlled commands as root.
+
+\evidence{figures/gamma_img-006.png}{Cron wildcard injection used to copy shadow data into Peter's directory.}{fig:shadow}
+
+The copied data included password hashes for users including Bob, Peter, Susan, and root:
+\begin{lstlisting}[style=plaincode]
+Bob:
+$6$Kk0DA.6Xha4nL2p5$jq7qoit2l4ckULg1ZxcbL5wUz2Ld2ZUa.RYaweMs.Lma0EFGheX9yCXfKy37K0GsHz50FYweqweESo4QXWL.DYTwe0
+
+Peter:
+$6$QpjS4vUG$Zi1KcJ7cRB8TJG9A/x7GhQQvJ0RoYwG4Jxj/6R58SJddU2X/QTQKNJWzwiByeTELKeyp0vS83kPsYweTbTTmlb0
+
+Susan:
+$6$5oSmml7K$0joeavcuzw4qxDJ2LsD1ablUwerFhycVoweXL3rxN/3q2lVpQOKLufta5tqMRweh30Gb32weBp5yZ7XvBR6uX9/SR/
+
+Root:
+$6$1PNDRbA5$be.MgHXpQ6KQdGOk2vbSZ7qm5ENWvgU.9hW1vt8LH1bhZ7cdY.n28vnQBEtcweDiDn2Ar9rEaBgdd5twA9SBlz1
+\end{lstlisting}
+
+The successful payload appended a sudoers rule for Peter:
+\begin{lstlisting}[style=terminal]
+echo "peter ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+\end{lstlisting}
+
+\evidence[0.58\linewidth]{figures/gamma_img-007.png}{Payload used to append a passwordless sudo rule for Peter.}{fig:sudoers-payload}
+
+After the cron job ran, Peter could execute \cmd{sudo bash}. A reverse shell variant using the same cron vulnerability was also demonstrated.
+
+\evidence[0.78\linewidth]{figures/gamma_img-008.png}{Root shell obtained through the cron-triggered reverse shell.}{fig:cron-reverse}
+
+\begin{findingbox}{GammaRed}{Finding: Cron wildcard injection}
+\begin{tabularx}{\linewidth}{L{0.28\linewidth} Y}
+\textbf{Severity} & \critical \\
+\textbf{Affected component} & Root-owned cron/backup workflow \\
+\textbf{Result} & Root command execution \\
+\textbf{Root cause} & Unsafe wildcard expansion over attacker-controlled files \\
+\end{tabularx}
+\end{findingbox}
+
+\section{Validated Path 3: Docker Group Abuse}
+Peter was a member of the Docker group. Docker group membership is dangerous because the Docker daemon runs with root privileges. A user who can control Docker can often mount the host filesystem or run privileged containers.
+
+\evidence{figures/gamma_img-009.png}{Alpine miniroot filesystem and Docker-related files in Peter's home directory.}{fig:docker-files}
+
+The first attempt to use Docker failed because the expected image was not locally available. The approach was adapted by transferring an Alpine miniroot filesystem into Peter's directory and importing it as a Docker image. Once a usable image was available, Docker could be used to access host resources and achieve root-level control.
+
+\begin{findingbox}{GammaRed}{Finding: Docker group membership}
+\begin{tabularx}{\linewidth}{L{0.28\linewidth} Y}
+\textbf{Severity} & \critical \\
+\textbf{Affected user} & Peter \\
+\textbf{Result} & Root-equivalent access \\
+\textbf{Root cause} & Docker group membership granted to a non-administrative user \\
+\end{tabularx}
+\end{findingbox}
+
+\section{Validated Path 4: UID 0 insecurity Account}
+During account enumeration, a user named \textit{insecurity} was found with UID 0 and GID 0. In Linux, UID 0 is the root privilege boundary. Any account with UID 0 is root-equivalent even if the username is not \textit{root}.
+
+The password hash for \textit{insecurity} was cracked. The password was:
+\begin{lstlisting}[style=plaincode]
+P@ssw0rd
+\end{lstlisting}
+
+\evidence{figures/gamma_img-010.png}{SSH login as \textit{insecurity}, a UID 0 account.}{fig:insecurity}
+
+The system treated \textit{insecurity} as root because its UID was 0. The account name did not matter. Combined with a weak crackable password, this created a root backdoor.
+
+\begin{findingbox}{GammaRed}{Finding: Non-root account with UID 0}
+\begin{tabularx}{\linewidth}{L{0.28\linewidth} Y}
+\textbf{Severity} & \critical \\
+\textbf{Affected account} & \textit{insecurity} \\
+\textbf{Password} & \secret{P@ssw0rd} \\
+\textbf{Result} & Root shell \\
+\textbf{Root cause} & Root-equivalent account misconfiguration \\
+\end{tabularx}
+\end{findingbox}
+
+\section{Validated Path 5: Bob Weak Password and Unrestricted Sudo}
+The target contained a user named Bob. SSH password authentication was enabled, and Bob's password was weak enough to be found through a wordlist attack.
+
+\begin{lstlisting}[style=terminal]
+hydra -l bob -P fasttrack.txt <Gamma_machine_IP> ssh
+\end{lstlisting}
+
+\evidence{figures/gamma_img-011.png}{Hydra identifying Bob's SSH password.}{fig:hydra}
+
+The password was found:
+\begin{lstlisting}[style=plaincode]
+secret
+\end{lstlisting}
+
+After logging in as Bob, \cmd{sudo -l} showed that Bob could run all commands with sudo. Root access was then obtained with \cmd{sudo bash}. This path combined two weaknesses: Bob had a weak password, and Bob had excessive sudo privileges.
+
+\begin{findingbox}{GammaRed}{Finding: Weak SSH password with unrestricted sudo}
+\begin{tabularx}{\linewidth}{L{0.28\linewidth} Y}
+\textbf{Severity} & \critical \\
+\textbf{Affected account} & Bob \\
+\textbf{Password} & \secret{secret} \\
+\textbf{Result} & Root shell \\
+\textbf{Root cause} & Weak password and excessive sudo privileges \\
+\end{tabularx}
+\end{findingbox}
+
+\section{Explored but Unsuccessful Paths}
+Susan's account was investigated after sensitive information was found in her home directory. Susan used restricted bash (\cmd{rbash}), but editor shell escapes allowed the restricted shell to be bypassed. After escaping the restricted shell, \filepath{/usr/bin/pkexec} was investigated because it was SUID root.
+
+\evidence{figures/gamma_img-012.png}{SUID enumeration while investigating \cmd{pkexec}.}{fig:pkexec}
+
+CVE-2021-4034, known as PwnKit, was considered because it affects vulnerable versions of \cmd{pkexec}. The exploit was downloaded and compiled, but it did not successfully escalate privileges on Gamma. This remained an explored path, not a validated finding.
+
+The target was also running a Linux 4.15.x kernel. Public exploits related to this kernel range were investigated, including an Exploit-DB entry associated with CVE-2018-18955, but the exploit did not succeed.
+
+\evidence{figures/gamma_img-013.png}{Public Linux 4.15.x exploit reference investigated during assessment.}{fig:kernel}
+
+SUID binaries were enumerated, but no writable or directly abusable SUID binary was identified during the initial pass.
+
+\evidence{figures/gamma_img-014.png}{SUID binary enumeration from Peter's shell.}{fig:suid}
+
+\chapter{Full Attack Chain Summary}
+
+\begin{enumerate}
+  \item Nmap identified SSH, rpcbind, and NFS.
+  \item \cmd{showmount} revealed that \filepath{/home/peter} was exported over NFS.
+  \item The NFS share was mounted from the attacking machine.
+  \item The share allowed write access to Peter's home directory.
+  \item SSH authorized-key material was added to Peter's account.
+  \item SSH access as Peter was obtained without Peter's password.
+  \item Local enumeration identified dangerous privilege-escalation paths.
+  \item Root was obtained through multiple independent methods, including \cmd{sudo strace}, cron wildcard injection, Docker group abuse, Bob's sudo access, and the UID 0 \textit{insecurity} account.
+  \item All CTF flags were recovered.
+\end{enumerate}
+
+\begin{infobox}{Attack Chain Interpretation}
+The NFS exposure was the initial failure, but the full compromise was enabled by several additional local misconfigurations. Removing only one weakness would not be enough to harden the system; the remediation effort must address network exposure, account policy, local privilege rules, scheduled jobs, and patch management together.
+\end{infobox}
+
+\chapter{Findings and Risk Analysis}
+
+\section{Finding 1: Writable NFS Export Enabled Account Takeover}
+\begin{findingbox}{GammaRed}{Critical Finding}
+\begin{tabularx}{\linewidth}{L{0.24\linewidth} Y}
+\textbf{Component} & NFS \\
+\textbf{Evidence} & \filepath{/home/peter *} in NFS export list \\
+\textbf{Exploitation} & Mounted share, wrote SSH key material, logged in as Peter \\
+\textbf{Impact} & Unauthorized SSH access as Peter \\
+\end{tabularx}
+\end{findingbox}
+
+The target exported Peter's home directory over NFS using wildcard client access. The share was writable, allowing files to be created and modified inside Peter's account directory. Because SSH trusts the \filepath{authorized_keys} file in a user's home directory, this allowed direct account takeover.
+
+\textbf{Recommendation:} Remove the export if it is not required, restrict NFS clients to explicit trusted hosts, avoid exporting user home directories, use read-only exports where possible, and audit Peter's \filepath{.ssh} directory.
+
+\section{Finding 2: Passwordless sudo strace Allowed Root Shell}
+\begin{findingbox}{GammaRed}{Critical Finding}
+\begin{tabularx}{\linewidth}{L{0.24\linewidth} Y}
+\textbf{Component} & sudo \\
+\textbf{Evidence} & \cmd{(ALL) NOPASSWD: /usr/bin/strace} \\
+\textbf{Exploitation} & \cmd{sudo strace -o /dev/null /bin/sh} \\
+\textbf{Impact} & Immediate root shell \\
+\end{tabularx}
+\end{findingbox}
+
+Peter could run \cmd{strace} as root without a password. Since \cmd{strace} can launch another program, this permission allowed Peter to launch \cmd{/bin/sh} as root.
+
+\textbf{Recommendation:} Remove the \cmd{NOPASSWD} rule and avoid granting sudo access to debuggers, interpreters, editors, pagers, archive utilities, or tools with shell escape functionality.
+
+\section{Finding 3: Cron Wildcard Injection Enabled Root Command Execution}
+\begin{findingbox}{GammaRed}{Critical Finding}
+\begin{tabularx}{\linewidth}{L{0.24\linewidth} Y}
+\textbf{Component} & Cron / backup script \\
+\textbf{Evidence} & Root-owned backup used \cmd{tar} wildcard expansion \\
+\textbf{Exploitation} & Injected \cmd{--checkpoint-action=exec=sh exploit.sh} \\
+\textbf{Impact} & Arbitrary command execution as root \\
+\end{tabularx}
+\end{findingbox}
+
+A root-owned scheduled backup process used wildcard expansion over a directory writable by Peter. Malicious filenames were interpreted as \cmd{tar} options, causing the backup job to execute attacker-controlled commands.
+
+\textbf{Recommendation:} Avoid wildcard expansion in root-owned scripts, do not run backup jobs as root unless required, use explicit file lists or safely quoted paths, and ensure user-writable directories are never consumed unsafely by privileged scripts.
+
+\section{Finding 4: Docker Group Membership Granted Root-Equivalent Access}
+\begin{findingbox}{GammaRed}{Critical Finding}
+\begin{tabularx}{\linewidth}{L{0.24\linewidth} Y}
+\textbf{Component} & Docker \\
+\textbf{Evidence} & Peter was in the Docker group \\
+\textbf{Exploitation} & Imported local Alpine filesystem and used Docker for host access \\
+\textbf{Impact} & Root-equivalent control \\
+\end{tabularx}
+\end{findingbox}
+
+Peter's Docker group membership allowed interaction with the Docker daemon. Because the daemon runs with root privileges, Docker access can often be used to mount or manipulate host filesystems.
+
+\textbf{Recommendation:} Remove non-administrative users from the Docker group, use rootless Docker where possible, monitor Docker socket access, and treat Docker group membership as privileged access.
+
+\section{Finding 5: UID 0 insecurity Account Created Root Backdoor}
+\begin{findingbox}{GammaRed}{Critical Finding}
+\begin{tabularx}{\linewidth}{L{0.24\linewidth} Y}
+\textbf{Component} & Local accounts \\
+\textbf{Evidence} & \textit{insecurity} account with UID 0 \\
+\textbf{Password} & \secret{P@ssw0rd} \\
+\textbf{Impact} & Direct root-equivalent login \\
+\end{tabularx}
+\end{findingbox}
+
+The system contained a non-root account with UID 0. Linux grants root privileges based on UID, not username. Therefore, \textit{insecurity} was functionally equivalent to root.
+
+\textbf{Recommendation:} Remove the \textit{insecurity} account or change it to a non-root UID. Ensure only \textit{root} has UID 0.
+
+\section{Finding 6: Weak User Passwords Enabled Account Compromise}
+\begin{findingbox}{GammaRed}{Critical Finding}
+\begin{tabularx}{\linewidth}{L{0.24\linewidth} Y}
+\textbf{Component} & SSH / local accounts \\
+\textbf{Evidence} & Bob's password found with Hydra \\
+\textbf{Password} & \secret{secret} \\
+\textbf{Impact} & SSH access as Bob, then root via sudo \\
+\end{tabularx}
+\end{findingbox}
+
+Bob used a weak password that was found through a wordlist attack. Bob also had unrestricted sudo privileges, which made the password compromise a direct path to root.
+
+\textbf{Recommendation:} Enforce strong password policy, enable lockout or throttling, disable SSH password authentication if possible, and review sudo access for all users.
+
+\section{Finding 7: Unsupported Ubuntu Baseline and Patch Debt}
+\begin{findingbox}{GammaOrange}{High Finding}
+\begin{tabularx}{\linewidth}{L{0.24\linewidth} Y}
+\textbf{Component} & Operating system and packages \\
+\textbf{Evidence} & Nessus reported Ubuntu 18.04.x SEoL and many critical/high findings \\
+\textbf{Impact} & Increased exposure to known vulnerabilities \\
+\end{tabularx}
+\end{findingbox}
+
+The target ran an old Ubuntu baseline with significant package vulnerabilities. While not every CVE was exploited, the patch state increased the number of viable attack paths.
+
+\textbf{Recommendation:} Upgrade to a supported Ubuntu release, apply kernel and package security updates, remove unused services and packages, and re-run Nessus after patching.
+
+\section{Finding 8: SSH Password Authentication Increased Remote Attack Surface}
+\begin{findingbox}{GammaOrange}{High Finding}
+\begin{tabularx}{\linewidth}{L{0.24\linewidth} Y}
+\textbf{Component} & SSH \\
+\textbf{Evidence} & SSH accepted password authentication \\
+\textbf{Impact} & Password guessing and credential reuse risk \\
+\end{tabularx}
+\end{findingbox}
+
+SSH accepted password authentication. This increased the effectiveness of weak credentials, as demonstrated through Bob's account.
+
+\textbf{Recommendation:} Disable password authentication if operationally feasible, require SSH keys, restrict SSH access by IP or subnet, and enable alerting for failed login attempts.
+
+\chapter{Flags}
+
+The original report documented four flags. They are included here because this report is intended for course submission and proof material should remain visible.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{L{0.16\linewidth} Y}
+\toprule
+\textbf{Flag} & \textbf{Value} \\
+\midrule
+Flag 1 & \secret{flag\{ccede7281309832a43700be64f373c09\}} \\
+Flag 2 & \secret{flag\{1ff099fc31d77b5a2f052004ae20dcfe\}} \\
+Flag 3 & \secret{flag\{3eb906069dd01a74352a2b1f9e5cec3f\}} \\
+Flag 4 & \secret{flag\{05153e3e75b9e2cb9a5373176ee5c238\}} \\
+\bottomrule
+\end{tabularx}
+\caption{Flags recovered during the Gamma exercise.}
+\end{table}
+
+\evidence{figures/gamma_img-015.png}{Example flag recovered from Bob's home directory.}{fig:bob-flag}
+
+\chapter{Remediation Plan}
+
+The remediation plan is prioritized according to exploitability and impact.
+
+\begingroup
+\small
+\begin{longtable}{L{0.08\linewidth} L{0.22\linewidth} L{0.34\linewidth} L{0.24\linewidth}}
+\toprule
+\textbf{Pr.} & \textbf{Issue} & \textbf{Recommended Action} & \textbf{Verification} \\
+\midrule
+\endhead
+P0 & Writable NFS export & Remove export or restrict to trusted hosts; make read-only if possible & Export list should not expose \filepath{/home/peter} to \cmd{*}. \\
+P0 & Compromised Peter account & Remove attacker keys and rotate credentials & Review Peter's \filepath{authorized_keys}. \\
+P0 & \cmd{sudo strace} rule & Remove \cmd{NOPASSWD: /usr/bin/strace} & \cmd{sudo -l} as Peter should not list \cmd{strace}. \\
+P0 & Cron wildcard injection & Rewrite backup script to avoid unsafe wildcards & Malicious \cmd{--checkpoint} filenames should not execute. \\
+P0 & Docker group access & Remove Peter from Docker group unless required & \cmd{groups peter} should not show \cmd{docker}. \\
+P0 & UID 0 \textit{insecurity} account & Remove account or assign non-root UID & UID 0 review should only show \textit{root}. \\
+P1 & Weak passwords & Reset Bob and other user passwords; enforce policy & Wordlist attacks should fail. \\
+P1 & SSH password authentication & Disable password authentication where possible & SSH config should disable password auth. \\
+P1 & Patch debt & Upgrade OS and packages & Nessus rescans should show reduced critical/high findings. \\
+P2 & Monitoring gaps & Enable logging and alerting & Failed SSH and sudo events should be visible in logs. \\
+\bottomrule
+\caption{Prioritized remediation roadmap.}
+\end{longtable}
+\endgroup
+
+\section{NFS Hardening}
+\begin{itemize}
+  \item Do not export user home directories unless there is a controlled operational requirement.
+  \item Replace wildcard client access with explicit trusted hosts or subnets.
+  \item Prefer read-only exports when write access is not required.
+  \item Use \cmd{root_squash}; verify that \cmd{no_root_squash} is not used.
+  \item Audit exported directories for SSH keys, scripts, secrets, and writable startup files.
+\end{itemize}
+
+\section{Privilege and Account Hardening}
+\begin{itemize}
+  \item Remove passwordless sudo permissions unless absolutely required.
+  \item Do not grant sudo access to binaries with shell escapes or arbitrary command execution.
+  \item Review \filepath{/etc/sudoers} and files under \filepath{/etc/sudoers.d/}.
+  \item Confirm that only \textit{root} has UID 0.
+  \item Reset weak passwords and rotate compromised SSH keys.
+\end{itemize}
+
+\section{Docker Hardening}
+\begin{itemize}
+  \item Treat Docker group membership as administrative access.
+  \item Remove normal users from the Docker group.
+  \item Use rootless Docker where container access is required without host-level privilege.
+  \item Monitor Docker socket access and privileged container creation.
+\end{itemize}
+
+\section{Cron Hardening}
+\begin{itemize}
+  \item Avoid shell wildcards in root-owned scripts that operate on user-controlled directories.
+  \item Use explicit file lists or safely quoted paths.
+  \item Run scheduled jobs under dedicated low-privilege service accounts.
+  \item Restrict write access to directories consumed by scheduled jobs.
+\end{itemize}
+
+\section{SSH and Patch Management}
+\begin{itemize}
+  \item Disable SSH password authentication if key-based authentication is feasible.
+  \item Deny direct root SSH login.
+  \item Enforce strong password policy and account lockout.
+  \item Upgrade the system to a supported Ubuntu release.
+  \item Apply kernel and package security updates.
+  \item Re-run authenticated vulnerability scans after patching.
+\end{itemize}
+
+\chapter{Post-Remediation Verification Plan}
+
+\section{NFS Verification}
+\begin{lstlisting}[style=terminal]
+showmount -e <Gamma_machine_IP>
+\end{lstlisting}
+Expected result: \filepath{/home/peter} should not be exported to \cmd{*}. If NFS is still required, access should be limited to trusted clients and the share should be read-only unless write access is justified.
+
+\section{SSH Verification}
+\begin{lstlisting}[style=terminal]
+sudo grep -E "PasswordAuthentication|PermitRootLogin" /etc/ssh/sshd_config
+\end{lstlisting}
+Expected secure configuration:
+\begin{lstlisting}[style=plaincode]
+PasswordAuthentication no
+PermitRootLogin no
+\end{lstlisting}
+
+\section{Sudo Verification}
+\begin{lstlisting}[style=terminal]
+sudo -l
+\end{lstlisting}
+Expected result: Peter should not have \cmd{NOPASSWD} access to \cmd{strace} and should not have unrestricted sudo unless explicitly required.
+
+\section{Docker Verification}
+\begin{lstlisting}[style=terminal]
+groups peter
+\end{lstlisting}
+Expected result: Peter should not be in the Docker group unless he is intended to have administrative-equivalent access.
+
+\section{UID 0 Account Verification}
+\begin{lstlisting}[style=terminal]
+awk -F: '$3 == 0 { print $1 }' /etc/passwd
+\end{lstlisting}
+Expected result:
+\begin{lstlisting}[style=plaincode]
+root
+\end{lstlisting}
+No other account should have UID 0.
+
+\section{Cron Verification}
+\begin{lstlisting}[style=terminal]
+ls -la /etc/cron*
+grep -R "\*" /etc/cron* 2>/dev/null
+\end{lstlisting}
+Expected result: root-owned jobs should not use unsafe wildcard expansion over user-writable directories. Backup scripts should quote paths and use explicit file lists.
+
+\section{Vulnerability Scan Verification}
+After configuration changes and patching, re-run an authenticated Nessus scan. Critical and high findings should be significantly reduced, NFS exposure findings should be gone, and end-of-life OS findings should be resolved after upgrade.
+
+\chapter*{AI Usage Disclosure}
+\addcontentsline{toc}{chapter}{AI Usage Disclosure}
+AI assistance was used to support report restructuring, technical explanation, and LaTeX formatting. The final technical conclusions in this report are based on hands-on validation against the Gamma target and the evidence preserved from the original report materials.
+
+\appendix
+\chapter{Explored but Unvalidated Paths}
+
+\section{rpcbind Exploit Search}
+\cmd{rpcbind} was investigated because it was exposed on port 111. No practical exploit path was identified. The service remained useful for understanding the NFS/RPC attack surface.
+
+\section{no\_root\_squash}
+The NFS export was checked for \cmd{no_root_squash}. This option did not appear to be enabled, so it was not used for escalation.
+
+\section{Generic Writable SUID Binary}
+SUID binaries were enumerated, but no obviously writable or directly exploitable SUID binary was found during the initial pass.
+
+\section{pkexec / PwnKit}
+\cmd{pkexec} was investigated from Susan's account. A PwnKit exploit was attempted but did not succeed.
+
+\section{Kernel Exploit}
+A Linux 4.15.x local privilege-escalation exploit was researched and attempted, but it did not succeed on the target environment.
+
+\section{Shell Profile Persistence Idea}
+The idea of placing payloads in \filepath{.bashrc} or \filepath{.profile} was explored. This could be useful if the target user later opened a shell, but it did not provide immediate access because it required Peter to log in interactively.
+
+\end{document}
